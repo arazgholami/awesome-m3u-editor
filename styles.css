@@ -1,0 +1,108 @@
+body {
+    background-color: #f8f9fa;
+    font-size: 0.9rem;
+}
+
+*:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.list-group-item {
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0 !important;
+}
+
+.list-group-item:hover {
+    background-color: #f1f1f1;
+}
+
+.list-group-item.active {
+    background-color: #e9ecef;
+    color: #000;
+    border-color: #dee2e6;
+}
+
+#groupsList, #itemsList {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.form-control, .form-control:focus {
+    border-radius: 0;
+    box-shadow: none;
+    border-color: #ced4da;
+}
+
+.btn {
+    border-radius: 0;
+}
+
+.border {
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Make form elements compact */
+.form-control-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Ensure form labels don't wrap */
+.col-form-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Add some spacing between sections */
+.row > div {
+    margin-bottom: 5px;
+}
+
+/* Style for selected items */
+.list-group-item.selected {
+    background-color: #e9ecef;
+}
+
+/* Style for items being dragged */
+.list-group-item.dragging-selected {
+    opacity: 0.5;
+    background-color: #d1e7ff;
+}
+
+/* Visual feedback for drop target */
+.sortable-drag {
+    opacity: 1 !important;
+    background-color: #f8f9fa;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* Visual feedback for drop placeholder */
+.sortable-ghost {
+    opacity: 0.5;
+    background: #c8ebfb;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
