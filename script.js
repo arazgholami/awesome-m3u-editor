@@ -19,6 +19,7 @@ const STORAGE_KEY = 'awesomeM3uEditorProject';
 const LEGACY_DATA_KEY = 'm3uData';
 const LEGACY_HEADER_KEY = 'm3uHeader';
 const NO_GROUP = 'No Group';
+const LARGE_FILE_BYTES = 100 * 1024 * 1024;
 
 
 function getStorageItem(key) {
@@ -59,6 +60,13 @@ const fileInput = document.getElementById('fileInput');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
 const playlistHeaderInput = document.getElementById('playlistHeaderInput');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingMessage = document.getElementById('loadingMessage');
+const loadingCount = document.getElementById('loadingCount');
+const loadingDetail = document.getElementById('loadingDetail');
+const loadingTrack = document.getElementById('loadingTrack');
+const loadingFills = Array.from(document.querySelectorAll('.loading-segment-fill'));
+const appContainer = document.querySelector('.container-fluid');
 
 const groupsList = document.getElementById('groupsList');
 const groupsFilterInput = document.getElementById('groupsFilterInput');
@@ -1315,18 +1323,111 @@ async function checkCurrentItem() {
     await checkChannelItems([item], 'Select a channel to check.', 'current channel');
 }
 
-function handleFileUpload(event) {
+function formatFileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const power = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / Math.pow(1024, power);
+    return `${power === 0 || value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[power]}`;
+}
+
+const LOAD_PHASES = ['Reading file', 'Finding channels', 'Building the list'];
+
+function showLoading(detail) {
+    if (!loadingOverlay) return;
+    loadingDetail.textContent = detail || '';
+    loadingOverlay.classList.remove('d-none');
+    if (appContainer) appContainer.inert = true;
+    setLoadingPhase(0, 0);
+}
+
+function setLoadingPhase(index, ratio, count) {
+    if (!loadingOverlay) return;
+
+    loadingMessage.textContent = LOAD_PHASES[index];
+    loadingCount.textContent = count || '';
+
+    loadingFills.forEach((fill, position) => {
+        const filled = position < index ? 1 : position === index ? ratio : 0;
+        fill.style.width = `${Math.round(filled * 100)}%`;
+    });
+
+    const overall = (index + ratio) / LOAD_PHASES.length;
+    loadingTrack.setAttribute('aria-valuenow', String(Math.round(overall * 100)));
+}
+
+function hideLoading() {
+    if (!loadingOverlay) return;
+    loadingOverlay.classList.add('d-none');
+    if (appContainer) appContainer.inert = false;
+    loadingFills.forEach(fill => { fill.style.width = '0%'; });
+}
+
+function nextPaint() {
+    // Background tabs never fire requestAnimationFrame, so fall back to a timer
+    // to keep the load from stalling when the user switches away mid-import.
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+        };
+        requestAnimationFrame(() => requestAnimationFrame(finish));
+        setTimeout(finish, 50);
+    });
+}
+
+function readFileAsText(file, onProgress) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Could not read the file.'));
+        reader.onprogress = event => {
+            if (event.lengthComputable) onProgress(event.loaded / event.total);
+        };
+        reader.readAsText(file);
+    });
+}
+
+async function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = event => {
-        parseM3U(event.target.result);
+    const sizeLabel = formatFileSize(file.size);
+
+    if (file.size > LARGE_FILE_BYTES) {
+        const proceed = confirm(`This playlist is ${sizeLabel}. Loading it will take a while, and the editor will run slower afterwards.\n\nLoad it anyway?`);
+        if (!proceed) {
+            fileInput.value = '';
+            return;
+        }
+    }
+
+    showLoading(`${file.name} · ${sizeLabel}`);
+    await nextPaint();
+
+    try {
+        const content = await readFileAsText(file, ratio => {
+            setLoadingPhase(0, ratio, `${Math.round(ratio * 100)}%`);
+        });
+
+        setLoadingPhase(1, 1);
+        await nextPaint();
+        parseM3U(content);
+
+        setLoadingPhase(2, 1, `${m3uData.length.toLocaleString()} channels`);
+        await nextPaint();
         saveToLocalStorage();
         renderGroups();
         renderItems();
-    };
-    reader.readAsText(file);
+    } catch (error) {
+        console.error('Could not load the playlist file:', error);
+        alert(`Could not read ${file.name}. Check that the file still exists, then choose it again.`);
+    } finally {
+        hideLoading();
+    }
 }
 
 function parseM3U(content) {

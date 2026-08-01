@@ -195,6 +195,21 @@
         </main>
     </div>
 
+    <div id="loadingOverlay" class="loading-overlay d-none">
+        <div class="loading-box">
+            <div class="loading-phase">
+                <span id="loadingMessage" role="status" aria-live="polite">Reading file</span>
+                <span id="loadingCount" class="loading-count" aria-live="off"></span>
+            </div>
+            <div id="loadingTrack" class="loading-track" role="progressbar" aria-label="Loading playlist" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <span class="loading-segment"><span class="loading-segment-fill"></span></span>
+                <span class="loading-segment"><span class="loading-segment-fill"></span></span>
+                <span class="loading-segment"><span class="loading-segment-fill"></span></span>
+            </div>
+            <div id="loadingDetail" class="loading-detail font-monospace"></div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js?v=v2.0-20260619"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js?v=v2.0-20260619"></script>
     <script src="script.js?v=v2.0-20260619"></script>
