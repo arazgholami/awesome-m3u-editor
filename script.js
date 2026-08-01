@@ -1415,10 +1415,18 @@ async function handleFileUpload(event) {
 
         setLoadingPhase(1, 1);
         await nextPaint();
-        parseM3U(content);
+        const parsed = parseM3U(content);
 
-        setLoadingPhase(2, 1, `${m3uData.length.toLocaleString()} channels`);
+        if (!parsed.items.length) {
+            hideLoading();
+            fileInput.value = '';
+            alert(`No channels found in ${file.name}. Your current playlist is untouched.`);
+            return;
+        }
+
+        setLoadingPhase(2, 1, `${parsed.items.length.toLocaleString()} channels`);
         await nextPaint();
+        applyParsedPlaylist(parsed);
         saveToLocalStorage();
         renderGroups();
         renderItems();
@@ -1430,18 +1438,13 @@ async function handleFileUpload(event) {
     }
 }
 
+// Parses into a standalone result and touches no editor state, so a file that
+// turns out not to be a playlist cannot destroy the one already loaded.
 function parseM3U(content) {
-    m3uData = [];
-    groupOrder = [];
-    playlistHeader = '#EXTM3U';
-    selectedGroup = null;
-    selectedGroups.clear();
-    selectedChannels.clear();
-    activeChannelId = null;
-    renamingGroup = null;
-    renamingItemId = null;
-
     const lines = String(content || '').replace(/\r/g, '').split('\n');
+    const items = [];
+    const groups = [];
+    let header = '#EXTM3U';
     let currentItem = null;
 
     lines.forEach(rawLine => {
@@ -1449,8 +1452,7 @@ function parseM3U(content) {
         if (!line) return;
 
         if (line.toUpperCase().startsWith('#EXTM3U')) {
-            playlistHeader = line;
-            playlistHeaderInput.value = playlistHeader;
+            header = line;
             return;
         }
 
@@ -1467,11 +1469,29 @@ function parseM3U(content) {
 
             currentItem.url = line;
             ensureItem(currentItem);
-            m3uData.push(currentItem);
-            ensureGroupExists(currentItem.groupTitle);
+            items.push(currentItem);
+            if (!groups.includes(currentItem.groupTitle)) groups.push(currentItem.groupTitle);
             currentItem = null;
         }
     });
+
+    return { header, items, groups };
+}
+
+function applyParsedPlaylist(parsed) {
+    m3uData = parsed.items;
+    groupOrder = parsed.groups;
+    playlistHeader = parsed.header;
+    playlistHeaderInput.value = playlistHeader;
+
+    selectedGroup = null;
+    selectedGroups.clear();
+    selectedChannels.clear();
+    activeChannelId = null;
+    renamingGroup = null;
+    renamingItemId = null;
+    groupSelectionAnchor = null;
+    itemSelectionAnchorId = null;
 
     syncGroupOrder();
     selectedGroup = groupOrder[0] || null;
