@@ -4,7 +4,7 @@ description: >
   Implement and improve Awesome M3U Editor (vanilla JS IPTV playlist editor).
   Use when changing playlist load/merge, channel/group editing, bulk rename,
   status checks, M3U parse/generate, or the editor UI. Also use for /m3u-editor
-  and when bumping the v2.1-YYYYMMDD release id.
+  and when bumping the v2.2-YYYYMMDD release id.
 ---
 
 # Improve Awesome M3U Editor
@@ -32,7 +32,9 @@ There is no test runner and no bundler. Do not add one unless asked.
 
 ## Feature entry points
 
-- **Open/merge files:** `handleFileUpload` → `parseM3U` → `mergeParsedPlaylists` (when more than one file) → `applyParsedPlaylist`
+- **Open/merge files:** `loadPlaylistFiles` (Open button, file input, or drag-and-drop) → `parseM3U` → `mergeParsedPlaylists` (when more than one file) → `applyParsedPlaylist`
+- **Project import/export:** `exportProject` / `handleProjectImport` / `downloadProjectBackup`
+- **Global search:** `globalSearchValue` + `getVisibleItemsForSelectedGroup`
 - **Header EPG merge:** `mergePlaylistHeaders` — union URL attrs, first-wins for other attrs
 - **Single rename:** `startItemRename` / `saveItemRename` (button when one channel is selected, or double-click)
 - **Bulk rename:** `startSelectedItemRename` opens `openBulkRenameModal` when several channels are selected. Name transform is `buildBulkRenamedName` (replace → prefix → suffix → numbers). Preview via `textContent`.
@@ -40,7 +42,7 @@ There is no test runner and no bundler. Do not add one unless asked.
 
 ## Release id
 
-When the user asks to ship or to update the version date, replace `v2.1-YYYYMMDD` (query strings) and `v2.1 YYYYMMDD` (header meta) in `index.html` with today's date. Keep the `2.1` product number unless asked to bump it.
+When the user asks to ship or to update the version date, replace `v2.2-YYYYMMDD` (query strings) and `v2.2 YYYYMMDD` (header meta) in `index.html` with today's date. Keep the `2.2` product number unless asked to bump it.
 
 ## Verify before finishing
 

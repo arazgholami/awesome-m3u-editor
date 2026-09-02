@@ -9,15 +9,139 @@ body {
 }
 
 .app-header {
-    min-height: 60px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    padding: 0.75rem 1rem 0.65rem;
+}
+
+.app-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.app-brand-logo {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.app-header h4 {
+    font-size: 1.15rem;
 }
 
 .app-meta {
-    min-width: 230px;
+    text-align: right;
+    line-height: 1.35;
 }
 
 .app-meta a {
     text-decoration: none;
+}
+
+.app-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.app-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.app-toolbar-sep {
+    width: 1px;
+    height: 1.4rem;
+    background: #dee2e6;
+    margin: 0 0.2rem;
+}
+
+.app-toolbar-search {
+    position: relative;
+    min-width: 220px;
+    flex: 1 1 220px;
+    max-width: 28rem;
+}
+
+.app-toolbar-search .bi-search {
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+    font-size: 0.85rem;
+}
+
+.app-toolbar-search input {
+    padding-left: 1.75rem;
+}
+
+.app-toolbar-hint {
+    margin-top: 0.45rem;
+}
+
+.drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1070;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 110, 253, 0.12);
+}
+
+.drop-box {
+    background: #fff;
+    border: 2px dashed #0d6efd;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.logo-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logo-preview {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    flex: 0 0 48px;
+}
+
+.channel-group-tag {
+    flex: 0 0 auto;
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.list-group-item.search-hit {
+    box-shadow: inset 3px 0 0 #0d6efd;
 }
 
 .list-group-item {
@@ -314,11 +438,15 @@ textarea.form-control-sm {
 }
 
 @media (max-width: 992px) {
-    .app-header {
+    .app-header-top {
         flex-direction: column;
     }
 
     .app-meta {
         text-align: left !important;
+    }
+
+    .app-toolbar-search {
+        max-width: none;
     }
 }

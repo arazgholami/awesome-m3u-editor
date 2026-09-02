@@ -21,6 +21,8 @@ const LEGACY_DATA_KEY = 'm3uData';
 const LEGACY_HEADER_KEY = 'm3uHeader';
 const NO_GROUP = 'No Group';
 const LARGE_FILE_BYTES = 100 * 1024 * 1024;
+const PROJECT_FORMAT = 'awesome-m3u-editor-project';
+const PROJECT_FORMAT_VERSION = 1;
 
 
 function getStorageItem(key) {
@@ -58,8 +60,14 @@ const knownAttributeKeys = new Set([
 ]);
 
 const fileInput = document.getElementById('fileInput');
+const openBtn = document.getElementById('openBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
+const importProjectBtn = document.getElementById('importProjectBtn');
+const exportProjectBtn = document.getElementById('exportProjectBtn');
+const importProjectInput = document.getElementById('importProjectInput');
+const globalSearchInput = document.getElementById('globalSearchInput');
+const dropOverlay = document.getElementById('dropOverlay');
 const playlistHeaderInput = document.getElementById('playlistHeaderInput');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingMessage = document.getElementById('loadingMessage');
@@ -90,6 +98,7 @@ const moveItemsBtn = document.getElementById('moveItemsBtn');
 const groupDropdown = document.getElementById('groupDropdown');
 const deleteItemsBtn = document.getElementById('deleteItemsBtn');
 const itemSelectedCount = document.getElementById('itemSelectedCount');
+const channelsHeadingLabel = document.getElementById('channelsHeadingLabel');
 const statusCheckProgress = document.getElementById('statusCheckProgress');
 
 const itemDetailsForm = document.getElementById('itemDetailsForm');
@@ -99,6 +108,7 @@ const itemUrlInput = document.getElementById('itemUrl');
 const itemTvgIdInput = document.getElementById('itemTvgId');
 const itemTvgNameInput = document.getElementById('itemTvgName');
 const itemTvgLogoInput = document.getElementById('itemTvgLogo');
+const itemTvgLogoPreview = document.getElementById('itemTvgLogoPreview');
 const itemCatchupInput = document.getElementById('itemCatchup');
 const itemCatchupTypeInput = document.getElementById('itemCatchupType');
 const itemCatchupDaysInput = document.getElementById('itemCatchupDays');
@@ -133,6 +143,8 @@ const bulkRenameModal = bulkRenameModalEl && window.bootstrap
 
 let groupsFilterValue = '';
 let itemsFilterValue = '';
+let globalSearchValue = '';
+let fileDragDepth = 0;
 
 function makeItemId() {
     return `item_${Date.now()}_${nextItemId++}`;
@@ -226,14 +238,38 @@ function getGroupItems(groupName) {
     return m3uData.filter(item => getItemGroup(item) === group);
 }
 
+function itemMatchesQuery(item, query) {
+    if (!query) return true;
+    const haystack = [
+        item.name,
+        item.url,
+        item.tvgId,
+        item.tvgName,
+        item.tvgLogo,
+        getItemGroup(item)
+    ].join(' ').toLowerCase();
+    return haystack.includes(query);
+}
+
 function getVisibleItemsForSelectedGroup() {
-    if (!selectedGroup) return [];
-    const items = getGroupItems(selectedGroup);
-    if (!itemsFilterValue) return items;
-    return items.filter(item => {
-        const haystack = [item.name, item.url, item.tvgId, item.tvgName, item.tvgLogo].join(' ').toLowerCase();
-        return haystack.includes(itemsFilterValue);
-    });
+    let items;
+    if (globalSearchValue) {
+        items = m3uData.filter(item => itemMatchesQuery(item, globalSearchValue));
+    } else if (!selectedGroup) {
+        return [];
+    } else {
+        items = getGroupItems(selectedGroup);
+    }
+
+    if (itemsFilterValue) {
+        items = items.filter(item => itemMatchesQuery(item, itemsFilterValue));
+    }
+    return items;
+}
+
+function groupHasSearchMatch(groupName) {
+    if (!globalSearchValue) return false;
+    return getGroupItems(groupName).some(item => itemMatchesQuery(item, globalSearchValue));
 }
 
 function rebuildDataByGroupOrder() {
@@ -484,6 +520,7 @@ function resetItemForm() {
     updateItemStatusControls(null);
     if (checkCurrentItemBtn) checkCurrentItemBtn.disabled = true;
     updateItemUrlPreview('');
+    updateLogoPreview('');
 }
 
 function fillItemForm(item) {
@@ -506,6 +543,29 @@ function fillItemForm(item) {
     if (checkCurrentItemBtn) checkCurrentItemBtn.disabled = isCheckingChannels || !item._id;
     updateItemGroupTitleDropdown(item.groupTitle || selectedGroup || NO_GROUP);
     updateItemUrlPreview(item.url || '');
+    updateLogoPreview(item.tvgLogo || '');
+}
+
+function updateLogoPreview(url) {
+    if (!itemTvgLogoPreview) return;
+
+    const value = String(url || '').trim();
+    itemTvgLogoPreview.onload = null;
+    itemTvgLogoPreview.onerror = null;
+
+    if (!value) {
+        itemTvgLogoPreview.hidden = true;
+        itemTvgLogoPreview.removeAttribute('src');
+        return;
+    }
+
+    itemTvgLogoPreview.onload = () => {
+        itemTvgLogoPreview.hidden = false;
+    };
+    itemTvgLogoPreview.onerror = () => {
+        itemTvgLogoPreview.hidden = true;
+    };
+    itemTvgLogoPreview.src = value;
 }
 
 function updateItemUrlPreview(url) {
@@ -579,16 +639,36 @@ function updateActionState() {
     newItemBtn.disabled = !selectedGroup;
     renameItemBtn.disabled = selectedItemCount === 0;
     cloneItemBtn.disabled = selectedItemCount !== 1;
-    sortItemsBtn.disabled = !selectedGroup || itemCount < 2;
+    sortItemsBtn.disabled = Boolean(globalSearchValue) || !selectedGroup || itemCount < 2;
     checkItemsBtn.disabled = isCheckingChannels || selectedItemCount === 0;
     checkItemsBtn.textContent = isCheckingChannels ? 'Checking...' : 'Check';
     if (checkCurrentItemBtn) checkCurrentItemBtn.disabled = isCheckingChannels || !activeChannelId;
     moveItemsBtn.disabled = selectedItemCount === 0 || groupCount === 0;
     deleteItemsBtn.disabled = selectedItemCount === 0;
-    downloadBtn.disabled = m3uData.length === 0 && getAllGroups().length === 0;
+    const projectEmpty = m3uData.length === 0 && getAllGroups().length === 0;
+    downloadBtn.disabled = projectEmpty;
+    if (exportProjectBtn) exportProjectBtn.disabled = projectEmpty;
+    if (itemsSortable && typeof itemsSortable.option === 'function') {
+        itemsSortable.option('disabled', Boolean(globalSearchValue));
+    }
+
+    if (channelsHeadingLabel) {
+        channelsHeadingLabel.textContent = globalSearchValue ? 'Search results' : 'Channels';
+    }
+    if (itemsFilterInput) {
+        itemsFilterInput.placeholder = globalSearchValue ? 'Narrow search results...' : 'Filter channels...';
+    }
 
     groupSelectedCount.textContent = selectedGroupCount ? `(${selectedGroupCount} selected)` : '';
-    itemSelectedCount.textContent = selectedItemCount ? `(${selectedItemCount} selected)` : '';
+    const visibleSelectedCount = selectedGroupItems.filter(item => selectedChannels.has(item._id)).length;
+    const hiddenSelectedCount = selectedItemCount - visibleSelectedCount;
+    if (!selectedItemCount) {
+        itemSelectedCount.textContent = '';
+    } else if (hiddenSelectedCount > 0) {
+        itemSelectedCount.textContent = `(${selectedItemCount} selected, ${hiddenSelectedCount} in other groups)`;
+    } else {
+        itemSelectedCount.textContent = `(${selectedItemCount} selected)`;
+    }
     if (statusCheckProgress) statusCheckProgress.textContent = checkingProgressText;
 }
 
@@ -606,6 +686,7 @@ function renderGroups() {
 
         if (selectedGroups.has(group)) groupItem.classList.add('selected');
         if (selectedGroup === group) groupItem.classList.add('active');
+        if (groupHasSearchMatch(group)) groupItem.classList.add('search-hit');
 
         if (renamingGroup === group) {
             const input = document.createElement('input');
@@ -672,7 +753,7 @@ function renderItems() {
 
     itemsList.innerHTML = '';
 
-    if (!selectedGroup) {
+    if (!selectedGroup && !globalSearchValue) {
         resetItemForm();
         updateActionState();
         return;
@@ -729,6 +810,13 @@ function renderItems() {
             urlSpan.title = item.url || '';
 
             channelMain.appendChild(nameSpan);
+            if (globalSearchValue) {
+                const groupTag = document.createElement('span');
+                groupTag.className = 'channel-group-tag';
+                groupTag.textContent = getItemGroup(item);
+                groupTag.title = getItemGroup(item);
+                channelMain.appendChild(groupTag);
+            }
             channelMain.appendChild(statusSpan);
             itemElement.appendChild(channelMain);
             itemElement.appendChild(urlSpan);
@@ -767,8 +855,6 @@ function selectGroup(event, groupName) {
         if (!selectedGroups.size) selectedGroup = null;
         if (selectedGroup && !selectedGroups.has(selectedGroup)) selectedGroup = [...selectedGroups][0] || null;
         groupSelectionAnchor = group;
-        selectedChannels.clear();
-        activeChannelId = null;
         renderGroups();
         renderItems();
         return;
@@ -783,8 +869,6 @@ function selectGroup(event, groupName) {
         if (start > end) [start, end] = [end, start];
         selectedGroups = new Set(visibleGroups.slice(start, end + 1));
         selectedGroup = group;
-        selectedChannels.clear();
-        activeChannelId = null;
         renderGroups();
         renderItems();
         return;
@@ -793,8 +877,6 @@ function selectGroup(event, groupName) {
     selectedGroup = group;
     selectedGroups = new Set([group]);
     groupSelectionAnchor = group;
-    selectedChannels.clear();
-    activeChannelId = null;
     renderGroups();
     renderItems();
 }
@@ -805,8 +887,18 @@ function selectItem(event, itemId) {
 
     const useToggle = event && (event.ctrlKey || event.metaKey);
     const useRange = event && event.shiftKey;
+    const itemGroup = getItemGroup(item);
+    let groupChanged = false;
 
     renamingItemId = null;
+
+    if (itemGroup !== selectedGroup) {
+        selectedGroup = itemGroup;
+        if (!useToggle && !useRange) selectedGroups = new Set([itemGroup]);
+        else selectedGroups.add(itemGroup);
+        groupSelectionAnchor = itemGroup;
+        groupChanged = true;
+    }
 
     if (useToggle) {
         if (selectedChannels.has(itemId)) {
@@ -817,6 +909,7 @@ function selectItem(event, itemId) {
             activeChannelId = itemId;
         }
         itemSelectionAnchorId = itemId;
+        if (groupChanged) renderGroups();
         renderItems();
         return;
     }
@@ -831,6 +924,7 @@ function selectItem(event, itemId) {
         if (start > end) [start, end] = [end, start];
         selectedChannels = new Set(visibleIds.slice(start, end + 1));
         activeChannelId = itemId;
+        if (groupChanged) renderGroups();
         renderItems();
         return;
     }
@@ -838,6 +932,7 @@ function selectItem(event, itemId) {
     selectedChannels = new Set([itemId]);
     activeChannelId = itemId;
     itemSelectionAnchorId = itemId;
+    if (groupChanged) renderGroups();
     renderItems();
 }
 
@@ -1171,6 +1266,8 @@ function deleteSelectedGroups() {
     if (!confirm(`Delete ${count} selected group${count === 1 ? '' : 's'}? This will also delete every channel inside.`)) {
         return;
     }
+
+    if (hasProjectData()) downloadProjectBackup();
 
     const groupsToDelete = new Set(selectedGroups);
     m3uData = m3uData.filter(item => !groupsToDelete.has(getItemGroup(item)));
@@ -1567,7 +1664,7 @@ function readFileAsText(file, onProgress) {
         reader.onload = () => resolve(reader.result);
         reader.onerror = () => reject(reader.error || new Error('Could not read the file.'));
         reader.onprogress = event => {
-            if (event.lengthComputable) onProgress(event.loaded / event.total);
+            if (onProgress && event.lengthComputable) onProgress(event.loaded / event.total);
         };
         reader.readAsText(file);
     });
@@ -1580,36 +1677,71 @@ function formatFileSelectionLabel(files) {
     return `${files.length} files · ${sizeLabel}\n${files.map(file => file.name).join(', ')}`;
 }
 
+function isPlaylistFile(file) {
+    const name = String(file && file.name || '').toLowerCase();
+    return name.endsWith('.m3u') || name.endsWith('.m3u8');
+}
+
+function isFileDrag(event) {
+    return Boolean(event.dataTransfer && Array.from(event.dataTransfer.types || []).includes('Files'));
+}
+
+function showDropOverlay() {
+    if (!dropOverlay) return;
+    dropOverlay.classList.remove('d-none');
+    dropOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideDropOverlay() {
+    fileDragDepth = 0;
+    if (!dropOverlay) return;
+    dropOverlay.classList.add('d-none');
+    dropOverlay.setAttribute('aria-hidden', 'true');
+}
+
+function hasProjectData() {
+    return m3uData.length > 0 || groupOrder.length > 0;
+}
+
 async function handleFileUpload(event) {
     const files = Array.from(event.target.files || []);
-    if (!files.length) return;
+    try {
+        await loadPlaylistFiles(files);
+    } finally {
+        event.target.value = '';
+    }
+}
 
-    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+async function loadPlaylistFiles(files) {
+    const playlistFiles = (files || []).filter(isPlaylistFile);
+    if (!playlistFiles.length) {
+        if (files && files.length) alert('Choose .m3u or .m3u8 files.');
+        return;
+    }
+
+    const totalSize = playlistFiles.reduce((sum, file) => sum + (file.size || 0), 0);
     const sizeLabel = formatFileSize(totalSize);
-    const namesLabel = files.length === 1 ? files[0].name : `${files.length} files`;
+    const namesLabel = playlistFiles.length === 1 ? playlistFiles[0].name : `${playlistFiles.length} files`;
 
     if (totalSize > LARGE_FILE_BYTES) {
         const proceed = confirm(`This playlist is ${sizeLabel}. Loading it will take a while, and the editor will run slower afterwards.\n\nLoad it anyway?`);
-        if (!proceed) {
-            fileInput.value = '';
-            return;
-        }
+        if (!proceed) return;
     }
 
-    showLoading(formatFileSelectionLabel(files));
+    showLoading(formatFileSelectionLabel(playlistFiles));
     await nextPaint();
 
     try {
         const parsedPlaylists = [];
         let bytesRead = 0;
         const readableTotal = totalSize || 1;
-        const readingMessage = files.length === 1 ? 'Reading file' : 'Reading files';
+        const readingMessage = playlistFiles.length === 1 ? 'Reading file' : 'Reading files';
 
-        for (let index = 0; index < files.length; index++) {
-            const file = files[index];
+        for (let index = 0; index < playlistFiles.length; index++) {
+            const file = playlistFiles[index];
             const content = await readFileAsText(file, ratio => {
                 const overall = (bytesRead + (file.size || 0) * ratio) / readableTotal;
-                setLoadingPhase(0, overall, `${index + 1}/${files.length}`, readingMessage);
+                setLoadingPhase(0, overall, `${index + 1}/${playlistFiles.length}`, readingMessage);
             });
             bytesRead += file.size || 0;
             parsedPlaylists.push(parseM3U(content));
@@ -1618,7 +1750,6 @@ async function handleFileUpload(event) {
         const withChannels = parsedPlaylists.filter(parsed => parsed.items.length);
         if (!withChannels.length) {
             hideLoading();
-            fileInput.value = '';
             alert(`No channels found in ${namesLabel}. Your current playlist is untouched.`);
             return;
         }
@@ -1629,6 +1760,7 @@ async function handleFileUpload(event) {
 
         setLoadingPhase(2, 1, `${merged.items.length.toLocaleString()} channels`);
         await nextPaint();
+        if (hasProjectData()) downloadProjectBackup();
         applyParsedPlaylist(merged);
         saveToLocalStorage();
         renderGroups();
@@ -1820,16 +1952,95 @@ function downloadM3U() {
         renderItems();
     }
 
-    const content = generateM3U();
-    const blob = new Blob([content], { type: 'application/x-mpegurl' });
+    downloadTextFile('playlist.m3u', generateM3U(), 'application/x-mpegurl');
+}
+
+function downloadTextFile(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType || 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'playlist.m3u';
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+function getProjectSnapshot() {
+    playlistHeader = (playlistHeaderInput.value || playlistHeader || '#EXTM3U').trim() || '#EXTM3U';
+    syncGroupOrder();
+    return {
+        format: PROJECT_FORMAT,
+        version: PROJECT_FORMAT_VERSION,
+        playlistHeader,
+        groupOrder,
+        m3uData
+    };
+}
+
+function parseProjectSnapshot(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    if (data.format && data.format !== PROJECT_FORMAT) return null;
+
+    const items = Array.isArray(data.m3uData) ? data.m3uData.map(ensureItem) : [];
+    const groups = Array.isArray(data.groupOrder) ? data.groupOrder.slice() : uniqueList(items.map(getItemGroup));
+    if (!items.length && !groups.length) return null;
+
+    return {
+        playlistHeader: data.playlistHeader || '#EXTM3U',
+        groupOrder: groups,
+        m3uData: items
+    };
+}
+
+function downloadProjectBackup() {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    downloadTextFile(
+        `awesome-m3u-backup-${stamp}.json`,
+        JSON.stringify(getProjectSnapshot()),
+        'application/json'
+    );
+}
+
+function exportProject() {
+    if (activeChannelId) {
+        saveCurrentItemFromForm();
+        saveToLocalStorage();
+        renderGroups();
+        renderItems();
+    }
+
+    if (!hasProjectData()) return;
+    downloadTextFile('awesome-m3u-editor-project.json', JSON.stringify(getProjectSnapshot(), null, 2), 'application/json');
+}
+
+async function handleProjectImport(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+        const content = await readFileAsText(file);
+        const parsed = parseProjectSnapshot(JSON.parse(content));
+        if (!parsed) {
+            alert('That file is not an Awesome M3U Editor project.');
+            return;
+        }
+
+        if (hasProjectData()) downloadProjectBackup();
+        applyParsedPlaylist({
+            header: parsed.playlistHeader,
+            items: parsed.m3uData,
+            groups: parsed.groupOrder
+        });
+        saveToLocalStorage();
+        renderGroups();
+        renderItems();
+    } catch (error) {
+        console.error('Could not import the project file:', error);
+        alert('Could not read that project file.');
+    }
 }
 
 function saveCurrentItemFromForm() {
@@ -1930,7 +2141,9 @@ function loadFromLocalStorage() {
 }
 
 function clearProject() {
-    if (!confirm('Are you sure you want to clear this playlist? This cannot be undone.')) return;
+    if (!confirm('Are you sure you want to clear this playlist? A backup will download first.')) return;
+
+    if (hasProjectData()) downloadProjectBackup();
 
     m3uData = [];
     groupOrder = [];
@@ -1960,8 +2173,6 @@ const groupsSortable = new SortableClass(groupsList, {
             selectedGroups = new Set([group]);
             selectedGroup = group;
             groupSelectionAnchor = group;
-            selectedChannels.clear();
-            activeChannelId = null;
         }
         evt.item.classList.add('dragging-selected');
     },
@@ -1994,9 +2205,57 @@ const itemsSortable = new SortableClass(itemsList, {
     }
 });
 
+if (openBtn && fileInput) {
+    openBtn.addEventListener('click', () => fileInput.click());
+}
 fileInput.addEventListener('change', handleFileUpload);
 downloadBtn.addEventListener('click', downloadM3U);
+if (exportProjectBtn) exportProjectBtn.addEventListener('click', exportProject);
+if (importProjectBtn && importProjectInput) {
+    importProjectBtn.addEventListener('click', () => importProjectInput.click());
+    importProjectInput.addEventListener('change', handleProjectImport);
+}
 clearBtn.addEventListener('click', clearProject);
+if (globalSearchInput) {
+    globalSearchInput.addEventListener('input', event => {
+        globalSearchValue = event.target.value.trim().toLowerCase();
+        renderGroups();
+        renderItems();
+    });
+}
+if (itemTvgLogoInput) {
+    itemTvgLogoInput.addEventListener('input', event => updateLogoPreview(event.target.value));
+}
+
+document.addEventListener('dragenter', event => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    fileDragDepth += 1;
+    showDropOverlay();
+});
+document.addEventListener('dragover', event => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+});
+document.addEventListener('dragleave', event => {
+    if (!isFileDrag(event)) return;
+    fileDragDepth = Math.max(0, fileDragDepth - 1);
+    if (!fileDragDepth) hideDropOverlay();
+});
+document.addEventListener('drop', event => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    hideDropOverlay();
+    loadPlaylistFiles(Array.from(event.dataTransfer.files || []));
+});
+document.addEventListener('keydown', event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+    if (!globalSearchInput) return;
+    event.preventDefault();
+    globalSearchInput.focus();
+    globalSearchInput.select();
+});
 playlistHeaderInput.addEventListener('input', () => {
     playlistHeader = playlistHeaderInput.value.trim() || '#EXTM3U';
     saveToLocalStorage();

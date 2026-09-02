@@ -6,7 +6,7 @@ Private, browser-only editor for M3U/M3U8 IPTV playlists. No build step, no serv
 
 | File | Role |
 |------|------|
-| `index.html` | Markup, toolbar, details form, loading overlay, bulk-rename modal |
+| `index.html` | Markup, app toolbar, details form, drop overlay, loading overlay, bulk-rename modal |
 | `script.js` | All app state, M3U parse/generate, UI actions |
 | `styles.css` | Layout, list selection, status badges, loading overlay, modal tweaks |
 | `README.md` | User-facing docs |
@@ -32,7 +32,8 @@ Persist with `saveToLocalStorage()` after every successful edit. Re-render with 
 
 - Parse: `parseM3U` → `{ header, items, groups }`. Parsing must not touch editor state (a bad file must not wipe the current playlist).
 - Apply: `applyParsedPlaylist` replaces the current playlist.
-- Multi-file: `#fileInput` is `multiple`. `handleFileUpload` reads every selected file, `mergeParsedPlaylists` concatenates channels, unions groups in first-seen order, and merges header EPG URL attributes (`url-tvg`, `x-tvg-url`, `tvg-url`). The merged playlist replaces whatever is in the editor, same as a single-file open.
+- Multi-file: `#fileInput` is `multiple` and hidden behind **Open**. `loadPlaylistFiles` also handles drag-and-drop. It reads every selected playlist, `mergeParsedPlaylists` concatenates channels, unions groups in first-seen order, and merges header EPG URL attributes (`url-tvg`, `x-tvg-url`, `tvg-url`). The merged playlist replaces whatever is in the editor.
+- Project files: **Export** / **Import** write JSON `{ format: 'awesome-m3u-editor-project', playlistHeader, groupOrder, m3uData }`. A backup JSON is downloaded before Clear, deleting groups, Import, or opening a playlist that would replace existing data.
 - Generate: `generateM3U` / `downloadM3U` writes `#EXTINF` plus preserved extra lines.
 
 Do not drop unknown `#EXTINF` attributes. Do not guess stream liveness when a check returns CORS.
@@ -45,16 +46,19 @@ Do not drop unknown `#EXTINF` attributes. Do not guess stream liveness when a ch
 ## UI conventions
 
 - Square controls (`border-radius: 0`), compact `form-control-sm` / `btn-sm`.
+- App chrome: Open / Save M3U / Import / Export / Clear, plus global search (`#globalSearchInput`). Ctrl/Cmd+K focuses search.
+- Global search lists matching channels from every group and tags each row with its group. Switching groups keeps `selectedChannels`.
 - Multi-select: Ctrl/Cmd toggle, Shift range, drag selected rows via SortableJS.
 - Status checks: selected channels only, 5 at a time, from the browser. CORS is a real status, not a failure to paper over.
-- Loading overlay (`#loadingOverlay`) for playlist import. Keep the tab from looking frozen on large files.
+- Loading overlay (`#loadingOverlay`) for playlist import. Drop overlay (`#dropOverlay`) while files are dragged over the page.
+- Channel details show a TVG logo thumbnail when the logo URL loads.
 
 ## Version
 
-Release id is `v2.1-YYYYMMDD`. It appears in:
+Release id is `v2.2-YYYYMMDD`. It appears in:
 
 - Cache-bust query strings on every local asset and CDN URL in `index.html`
-- The header meta line `v2.1 YYYYMMDD`
+- The header meta line `v2.2 YYYYMMDD`
 
 On a user-visible release, set YYYYMMDD to that day's date in every one of those places.
 

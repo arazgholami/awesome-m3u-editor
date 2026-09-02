@@ -1,4 +1,4 @@
-# Awesome M3U Editor 2.1
+# Awesome M3U Editor 2.2
 
 [![GitHub license](https://img.shields.io/github/license/arazgray/awesome-m3u-editor)](https://github.com/arazgray/awesome-m3u-editor/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/arazgray/awesome-m3u-editor)](https://github.com/arazgray/awesome-m3u-editor/stargazers)
@@ -10,11 +10,29 @@ Open a playlist, organize groups and channels, edit channel details, check strea
 🔗 **Live**: [https://arazgray.github.io/awesome-m3u-editor/](https://arazgray.github.io/awesome-m3u-editor/)
 
 ## Screenshot
-![screenshot](screenshot.png "Awesome M3U Editor 2.1")
+![screenshot](screenshot.png "Awesome M3U Editor 2.2")
+
+## What's new in 2.2 (20260903)
+
+- New app toolbar: **Open**, **Save M3U**, **Import**, **Export**, **Clear**, and search
+- Drag and drop `.m3u` / `.m3u8` files onto the page to open them
+- Search channels across every group, not only the open list
+- Switching groups keeps the selected channels
+- Channel logo thumbnails in the details pane
+- Import and export the full editor project (header, groups, channels, and statuses)
+- Automatic project backup before Clear, deleting groups, Import, or replacing the current playlist
+- Open several playlists at once; they are merged on load
+- Bulk rename selected channels with prefix, suffix, find/replace, and numbering
+- Loading overlay with real progress while a playlist is opened (reading the file, finding channels, building the list)
+- Warning before opening playlists larger than 100 MB, and a clear error if a file cannot be read
+- Empty or invalid files no longer wipe the current playlist or overwrite the playlist header
 
 ## Main features
 
 - Open one or more `.m3u` and `.m3u8` playlists; multiple files are merged on load
+- Drag and drop playlist files onto the page to open them
+- Search channels across every group
+- Import and export the full editor project (groups, channels, and statuses)
 - Edit the playlist header, including EPG URLs
 - Create, rename, move, sort, and delete groups
 - Create, rename, move, sort, and delete channels
@@ -24,6 +42,7 @@ Open a playlist, organize groups and channels, edit channel details, check strea
 - Filter groups and channels
 - Move selected channels to another group
 - Edit channel name, URL, TVG fields, logo, group, catchup fields, and extra attributes
+- Preview channel logos in the details pane
 - Preserve unknown provider attributes instead of deleting them
 - Preview channel URLs
 - Check selected channels only
@@ -49,12 +68,13 @@ https://iptv-org.github.io/iptv/index.country.m3u
 ## How to use
 
 1. Open the live demo or run `index.html` locally.
-2. Choose one or more `.m3u` or `.m3u8` files. Several files are merged into one playlist.
-3. Edit groups, channels, URLs, and metadata.
-4. Select several channels and click **Rename** to add a prefix or suffix, replace text, or add numbers. Double-click still renames one channel.
-5. Select channels and click **Check** to test only those channels.
-6. Use **Sort** to sort channels A-Z or by status.
-7. Click **Download Modified M3U** when you are done.
+2. Click **Open** or drop `.m3u` / `.m3u8` files onto the page. Several files are merged into one playlist.
+3. Use the top search box to find channels in every group. Switching groups keeps the selected channels.
+4. Edit groups, channels, URLs, and metadata. **Export** saves the whole editor project; **Import** restores it.
+5. Select several channels and click **Rename** to add a prefix or suffix, replace text, or add numbers. Double-click still renames one channel.
+6. Select channels and click **Check** to test only those channels.
+7. Use **Sort** to sort channels A-Z or by status.
+8. Click **Save M3U** when you are done.
 
 ## Run locally
 
