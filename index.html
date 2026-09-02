@@ -3,26 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Awesome M3U Editor 2.0</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css?v=v2.0-20260619" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=v2.0-20260619">
-    <link rel="shortcut icon" href="icon.png?v=v2.0-20260619" type="image/x-icon">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css?v=v2.0-20260619" rel="stylesheet">
+    <title>Awesome M3U Editor 2.1</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css?v=v2.1-20260902" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=v2.1-20260902">
+    <link rel="shortcut icon" href="icon.png?v=v2.1-20260902" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css?v=v2.1-20260902" rel="stylesheet">
 </head>
 <body>
     <div class="container-fluid p-3">
         <header class="app-header d-flex justify-content-between align-items-start gap-3 mb-3">
             <div>
-                <h4 class="mb-1">⇅ Awesome M3U Editor 2.0</h4>
+                <h4 class="mb-1">⇅ Awesome M3U Editor 2.1</h4>
                 <div class="text-muted small">Free, Private, local, browser-based M3U and M3U8 playlist editor.</div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center">
-                <input type="file" id="fileInput" class="form-control" accept=".m3u,.m3u8" style="max-width: 250px;">
+                <input type="file" id="fileInput" class="form-control" accept=".m3u,.m3u8" multiple aria-label="Open M3U files" title="Select one or more .m3u or .m3u8 files. Multiple files are merged." style="max-width: 280px;">
                 <button id="downloadBtn" class="btn btn-primary" disabled>Download Modified M3U</button>
                 <button id="clearBtn" class="btn btn-outline-danger">Clear</button>
             </div>
             <div class="text-end small app-meta">
-                <div>v2.0 20260619</div>
+                <div>v2.1 20260902</div>
                 <div>Made with ❤️ By <a target="_blank" rel="noopener" href="https://github.com/arazgray/">@arazgray</a></div>
                 <div><a href="https://github.com/arazgray/awesome-m3u-editor" target="_blank" rel="noopener">⭐ Star it on Github</a></div>
             </div>
@@ -86,7 +86,7 @@
                     <div class="mb-2">
                         <input id="itemsFilterInput" type="text" class="form-control form-control-sm" placeholder="Filter channels...">
                     </div>
-                    <div class="section-hint small text-muted mb-2">Rename works by button or double click. Sort A-Z or by status. Select channels, then use Check to test only those URLs.</div>
+                    <div class="section-hint small text-muted mb-2">Double-click or Rename edits one name. Select many and hit Rename for prefix, suffix, replace, and numbering. Sort A-Z or by status. Check tests selected URLs only.</div>
                     <div id="itemsList" class="list-group flex-grow-1 overflow-auto">
                     </div>
                     <div id="statusCheckProgress" class="status-progress small mt-2" aria-live="polite"></div>
@@ -210,8 +210,96 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js?v=v2.0-20260619"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js?v=v2.0-20260619"></script>
-    <script src="script.js?v=v2.0-20260619"></script>
+    <div class="modal fade" id="bulkRenameModal" tabindex="-1" aria-labelledby="bulkRenameModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form id="bulkRenameForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bulkRenameModalLabel">Rename channels</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="bulkRenameCount" class="small text-muted mb-3"></p>
+                        <p class="small text-muted">Filled options are applied in this order: replace, prefix, suffix, then numbers. This changes the channel name only, not TVG ID or TVG name.</p>
+
+                        <div class="mb-3">
+                            <label for="bulkRenamePrefix" class="form-label small fw-semibold">Add prefix</label>
+                            <input type="text" class="form-control form-control-sm" id="bulkRenamePrefix" placeholder="e.g. US | " autocomplete="off">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="bulkRenameSuffix" class="form-label small fw-semibold">Add suffix</label>
+                            <input type="text" class="form-control form-control-sm" id="bulkRenameSuffix" placeholder="e.g. HD" autocomplete="off">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Replace text</label>
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label for="bulkRenameFind" class="visually-hidden">Find</label>
+                                    <input type="text" class="form-control form-control-sm" id="bulkRenameFind" placeholder="Find" autocomplete="off">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="bulkRenameReplace" class="visually-hidden">Replace with</label>
+                                    <input type="text" class="form-control form-control-sm" id="bulkRenameReplace" placeholder="Replace with" autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 flex-wrap mt-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkRenameMatchCase">
+                                    <label class="form-check-label small" for="bulkRenameMatchCase">Match case</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkRenameWholeWord">
+                                    <label class="form-check-label small" for="bulkRenameWholeWord">Whole word</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="bulkRenameAddNumbers">
+                                <label class="form-check-label small fw-semibold" for="bulkRenameAddNumbers">Add numbers</label>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6 col-sm-3">
+                                    <label for="bulkRenameNumberStart" class="form-label small">Start at</label>
+                                    <input type="number" class="form-control form-control-sm" id="bulkRenameNumberStart" value="1" min="0" step="1">
+                                </div>
+                                <div class="col-6 col-sm-3">
+                                    <label for="bulkRenameNumberPad" class="form-label small">Digits</label>
+                                    <input type="number" class="form-control form-control-sm" id="bulkRenameNumberPad" value="2" min="1" max="8" step="1">
+                                </div>
+                                <div class="col-6 col-sm-3">
+                                    <label for="bulkRenameNumberPosition" class="form-label small">Position</label>
+                                    <select class="form-select form-select-sm" id="bulkRenameNumberPosition">
+                                        <option value="prefix">Before name</option>
+                                        <option value="suffix">After name</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-sm-3">
+                                    <label for="bulkRenameNumberSeparator" class="form-label small">Separator</label>
+                                    <input type="text" class="form-control form-control-sm" id="bulkRenameNumberSeparator" value=" " placeholder="e.g. . " autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="small fw-semibold mb-1">Preview</div>
+                            <div id="bulkRenamePreview" class="bulk-rename-preview border p-2 bg-light small font-monospace"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary" id="bulkRenameApplyBtn">Rename</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js?v=v2.1-20260902"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js?v=v2.1-20260902"></script>
+    <script src="script.js?v=v2.1-20260902"></script>
 </body>
 </html>

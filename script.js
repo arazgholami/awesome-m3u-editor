@@ -13,6 +13,7 @@ let itemSelectionAnchorId = null;
 let nextItemId = 1;
 let isCheckingChannels = false;
 let checkingProgressText = '';
+let bulkRenameTargets = [];
 
 const STATUS_UNKNOWN = 'Unknown';
 const STORAGE_KEY = 'awesomeM3uEditorProject';
@@ -111,6 +112,25 @@ const itemGroupTitleDropdownMenu = document.getElementById('itemGroupTitleDropdo
 const itemGroupTitleSelected = document.getElementById('itemGroupTitleSelected');
 const itemGroupTitleInput = document.getElementById('itemGroupTitle');
 
+const bulkRenameModalEl = document.getElementById('bulkRenameModal');
+const bulkRenameForm = document.getElementById('bulkRenameForm');
+const bulkRenameCount = document.getElementById('bulkRenameCount');
+const bulkRenamePrefixInput = document.getElementById('bulkRenamePrefix');
+const bulkRenameSuffixInput = document.getElementById('bulkRenameSuffix');
+const bulkRenameFindInput = document.getElementById('bulkRenameFind');
+const bulkRenameReplaceInput = document.getElementById('bulkRenameReplace');
+const bulkRenameMatchCaseInput = document.getElementById('bulkRenameMatchCase');
+const bulkRenameWholeWordInput = document.getElementById('bulkRenameWholeWord');
+const bulkRenameAddNumbersInput = document.getElementById('bulkRenameAddNumbers');
+const bulkRenameNumberStartInput = document.getElementById('bulkRenameNumberStart');
+const bulkRenameNumberPadInput = document.getElementById('bulkRenameNumberPad');
+const bulkRenameNumberPositionInput = document.getElementById('bulkRenameNumberPosition');
+const bulkRenameNumberSeparatorInput = document.getElementById('bulkRenameNumberSeparator');
+const bulkRenamePreview = document.getElementById('bulkRenamePreview');
+const bulkRenameModal = bulkRenameModalEl && window.bootstrap
+    ? new bootstrap.Modal(bulkRenameModalEl)
+    : null;
+
 let groupsFilterValue = '';
 let itemsFilterValue = '';
 
@@ -156,6 +176,18 @@ function uniqueList(values) {
             seen.add(normalized);
             output.push(normalized);
         }
+    });
+    return output;
+}
+
+function uniqueStrings(values) {
+    const seen = new Set();
+    const output = [];
+    values.forEach(value => {
+        const normalized = String(value || '').trim();
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        output.push(normalized);
     });
     return output;
 }
@@ -545,7 +577,7 @@ function updateActionState() {
     sortGroupsBtn.disabled = visibleGroupCount < 2;
 
     newItemBtn.disabled = !selectedGroup;
-    renameItemBtn.disabled = selectedItemCount !== 1;
+    renameItemBtn.disabled = selectedItemCount === 0;
     cloneItemBtn.disabled = selectedItemCount !== 1;
     sortItemsBtn.disabled = !selectedGroup || itemCount < 2;
     checkItemsBtn.disabled = isCheckingChannels || selectedItemCount === 0;
@@ -835,8 +867,158 @@ function startItemRename(itemId) {
 }
 
 function startSelectedItemRename() {
-    if (selectedChannels.size !== 1) return;
-    startItemRename([...selectedChannels][0]);
+    if (selectedChannels.size === 0) return;
+    if (selectedChannels.size === 1) {
+        startItemRename([...selectedChannels][0]);
+        return;
+    }
+    openBulkRenameModal();
+}
+
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function replaceNameText(name, find, replaceWith, matchCase, wholeWord) {
+    const source = String(name || '');
+    const search = String(find || '');
+    if (!search) return source;
+
+    const flags = matchCase ? 'g' : 'gi';
+    const pattern = wholeWord ? `\\b${escapeRegExp(search)}\\b` : escapeRegExp(search);
+    return source.replace(new RegExp(pattern, flags), String(replaceWith || ''));
+}
+
+function readBulkRenameOptions() {
+    const startRaw = bulkRenameNumberStartInput ? bulkRenameNumberStartInput.value : '1';
+    const padRaw = bulkRenameNumberPadInput ? bulkRenameNumberPadInput.value : '2';
+    let start = startRaw === '' ? 1 : Number(startRaw);
+    let pad = Number(padRaw);
+
+    if (!Number.isFinite(start) || start < 0) start = 1;
+    start = Math.floor(start);
+    if (!Number.isFinite(pad) || pad < 1) pad = 1;
+    if (pad > 8) pad = 8;
+    pad = Math.floor(pad);
+
+    return {
+        prefix: bulkRenamePrefixInput ? bulkRenamePrefixInput.value : '',
+        suffix: bulkRenameSuffixInput ? bulkRenameSuffixInput.value : '',
+        find: bulkRenameFindInput ? bulkRenameFindInput.value : '',
+        replaceWith: bulkRenameReplaceInput ? bulkRenameReplaceInput.value : '',
+        matchCase: Boolean(bulkRenameMatchCaseInput && bulkRenameMatchCaseInput.checked),
+        wholeWord: Boolean(bulkRenameWholeWordInput && bulkRenameWholeWordInput.checked),
+        addNumbers: Boolean(bulkRenameAddNumbersInput && bulkRenameAddNumbersInput.checked),
+        start,
+        pad,
+        position: bulkRenameNumberPositionInput && bulkRenameNumberPositionInput.value === 'suffix' ? 'suffix' : 'prefix',
+        separator: bulkRenameNumberSeparatorInput ? bulkRenameNumberSeparatorInput.value : ' '
+    };
+}
+
+function hasAnyBulkRenameAction(options) {
+    return Boolean(options.prefix || options.suffix || options.find || options.addNumbers);
+}
+
+function buildBulkRenamedName(originalName, index, options) {
+    let name = String(originalName || '');
+
+    if (options.find) {
+        name = replaceNameText(name, options.find, options.replaceWith, options.matchCase, options.wholeWord);
+    }
+    if (options.prefix) name = options.prefix + name;
+    if (options.suffix) name += options.suffix;
+    if (options.addNumbers) {
+        const number = String(options.start + index).padStart(options.pad, '0');
+        name = options.position === 'suffix'
+            ? `${name}${options.separator}${number}`
+            : `${number}${options.separator}${name}`;
+    }
+
+    name = name.trim();
+    return name || String(originalName || 'Unnamed');
+}
+
+function resetBulkRenameForm() {
+    if (bulkRenamePrefixInput) bulkRenamePrefixInput.value = '';
+    if (bulkRenameSuffixInput) bulkRenameSuffixInput.value = '';
+    if (bulkRenameFindInput) bulkRenameFindInput.value = '';
+    if (bulkRenameReplaceInput) bulkRenameReplaceInput.value = '';
+    if (bulkRenameMatchCaseInput) bulkRenameMatchCaseInput.checked = false;
+    if (bulkRenameWholeWordInput) bulkRenameWholeWordInput.checked = false;
+    if (bulkRenameAddNumbersInput) bulkRenameAddNumbersInput.checked = false;
+    if (bulkRenameNumberStartInput) bulkRenameNumberStartInput.value = '1';
+    if (bulkRenameNumberPadInput) bulkRenameNumberPadInput.value = '2';
+    if (bulkRenameNumberPositionInput) bulkRenameNumberPositionInput.value = 'prefix';
+    if (bulkRenameNumberSeparatorInput) bulkRenameNumberSeparatorInput.value = ' ';
+}
+
+function updateBulkRenamePreview() {
+    if (!bulkRenamePreview) return;
+
+    bulkRenamePreview.innerHTML = '';
+    const options = readBulkRenameOptions();
+    const previewItems = bulkRenameTargets.slice(0, 8);
+
+    previewItems.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'bulk-rename-preview-row';
+
+        const from = document.createElement('span');
+        from.className = 'bulk-rename-preview-old';
+        from.textContent = item.name || 'Unnamed';
+
+        const arrow = document.createElement('span');
+        arrow.className = 'bulk-rename-preview-arrow';
+        arrow.textContent = '→';
+
+        const to = document.createElement('span');
+        to.className = 'bulk-rename-preview-new';
+        to.textContent = buildBulkRenamedName(item.name, index, options);
+
+        row.appendChild(from);
+        row.appendChild(arrow);
+        row.appendChild(to);
+        bulkRenamePreview.appendChild(row);
+    });
+
+    if (bulkRenameTargets.length > 8) {
+        const more = document.createElement('div');
+        more.className = 'text-muted mt-1';
+        more.textContent = `…and ${bulkRenameTargets.length - 8} more`;
+        bulkRenamePreview.appendChild(more);
+    }
+}
+
+function openBulkRenameModal() {
+    bulkRenameTargets = getSelectedChannelItems();
+    if (!bulkRenameTargets.length) return;
+
+    resetBulkRenameForm();
+    if (bulkRenameCount) {
+        const count = bulkRenameTargets.length;
+        bulkRenameCount.textContent = `Renaming ${count} selected channel${count === 1 ? '' : 's'}.`;
+    }
+    updateBulkRenamePreview();
+    if (bulkRenameModal) bulkRenameModal.show();
+}
+
+function applyBulkRename() {
+    if (!bulkRenameTargets.length) return;
+
+    const options = readBulkRenameOptions();
+    if (!hasAnyBulkRenameAction(options)) {
+        alert('Enter a prefix, suffix, or replacement, or enable numbering.');
+        return;
+    }
+
+    bulkRenameTargets.forEach((item, index) => {
+        item.name = buildBulkRenamedName(item.name, index, options);
+    });
+
+    if (bulkRenameModal) bulkRenameModal.hide();
+    saveToLocalStorage();
+    renderItems();
 }
 
 function saveGroupRename(oldName, newName) {
@@ -1342,10 +1524,10 @@ function showLoading(detail) {
     setLoadingPhase(0, 0);
 }
 
-function setLoadingPhase(index, ratio, count) {
+function setLoadingPhase(index, ratio, count, message) {
     if (!loadingOverlay) return;
 
-    loadingMessage.textContent = LOAD_PHASES[index];
+    loadingMessage.textContent = message || LOAD_PHASES[index];
     loadingCount.textContent = count || '';
 
     loadingFills.forEach((fill, position) => {
@@ -1391,13 +1573,22 @@ function readFileAsText(file, onProgress) {
     });
 }
 
+function formatFileSelectionLabel(files) {
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const sizeLabel = formatFileSize(totalSize);
+    if (files.length === 1) return `${files[0].name} · ${sizeLabel}`;
+    return `${files.length} files · ${sizeLabel}\n${files.map(file => file.name).join(', ')}`;
+}
+
 async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
 
-    const sizeLabel = formatFileSize(file.size);
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const sizeLabel = formatFileSize(totalSize);
+    const namesLabel = files.length === 1 ? files[0].name : `${files.length} files`;
 
-    if (file.size > LARGE_FILE_BYTES) {
+    if (totalSize > LARGE_FILE_BYTES) {
         const proceed = confirm(`This playlist is ${sizeLabel}. Loading it will take a while, and the editor will run slower afterwards.\n\nLoad it anyway?`);
         if (!proceed) {
             fileInput.value = '';
@@ -1405,34 +1596,46 @@ async function handleFileUpload(event) {
         }
     }
 
-    showLoading(`${file.name} · ${sizeLabel}`);
+    showLoading(formatFileSelectionLabel(files));
     await nextPaint();
 
     try {
-        const content = await readFileAsText(file, ratio => {
-            setLoadingPhase(0, ratio, `${Math.round(ratio * 100)}%`);
-        });
+        const parsedPlaylists = [];
+        let bytesRead = 0;
+        const readableTotal = totalSize || 1;
+        const readingMessage = files.length === 1 ? 'Reading file' : 'Reading files';
 
-        setLoadingPhase(1, 1);
-        await nextPaint();
-        const parsed = parseM3U(content);
+        for (let index = 0; index < files.length; index++) {
+            const file = files[index];
+            const content = await readFileAsText(file, ratio => {
+                const overall = (bytesRead + (file.size || 0) * ratio) / readableTotal;
+                setLoadingPhase(0, overall, `${index + 1}/${files.length}`, readingMessage);
+            });
+            bytesRead += file.size || 0;
+            parsedPlaylists.push(parseM3U(content));
+        }
 
-        if (!parsed.items.length) {
+        const withChannels = parsedPlaylists.filter(parsed => parsed.items.length);
+        if (!withChannels.length) {
             hideLoading();
             fileInput.value = '';
-            alert(`No channels found in ${file.name}. Your current playlist is untouched.`);
+            alert(`No channels found in ${namesLabel}. Your current playlist is untouched.`);
             return;
         }
 
-        setLoadingPhase(2, 1, `${parsed.items.length.toLocaleString()} channels`);
+        const merged = withChannels.length === 1 ? withChannels[0] : mergeParsedPlaylists(withChannels);
+        setLoadingPhase(1, 1, `${merged.items.length.toLocaleString()} channels`);
         await nextPaint();
-        applyParsedPlaylist(parsed);
+
+        setLoadingPhase(2, 1, `${merged.items.length.toLocaleString()} channels`);
+        await nextPaint();
+        applyParsedPlaylist(merged);
         saveToLocalStorage();
         renderGroups();
         renderItems();
     } catch (error) {
         console.error('Could not load the playlist file:', error);
-        alert(`Could not read ${file.name}. Check that the file still exists, then choose it again.`);
+        alert(`Could not read ${namesLabel}. Check that the file still exists, then choose it again.`);
     } finally {
         hideLoading();
     }
@@ -1476,6 +1679,62 @@ function parseM3U(content) {
     });
 
     return { header, items, groups };
+}
+
+function splitPlaylistUrls(value) {
+    return String(value || '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean);
+}
+
+function mergePlaylistHeaders(headers) {
+    const urlKeys = new Set(['url-tvg', 'x-tvg-url', 'tvg-url']);
+    const attributes = {};
+    const order = [];
+
+    (headers || []).forEach(header => {
+        const rest = String(header || '').replace(/^#EXTM3U\s*/i, '');
+        const parsed = parseAttributeString(rest);
+        parsed.order.forEach(key => {
+            const value = parsed.attributes[key];
+            if (!order.includes(key)) order.push(key);
+            if (urlKeys.has(key.toLowerCase())) {
+                attributes[key] = uniqueStrings([
+                    ...splitPlaylistUrls(attributes[key]),
+                    ...splitPlaylistUrls(value)
+                ]).join(',');
+                return;
+            }
+            if (!Object.prototype.hasOwnProperty.call(attributes, key)) {
+                attributes[key] = value;
+            }
+        });
+    });
+
+    const attrsText = order.map(key => formatAttribute(key, attributes[key])).join(' ');
+    return attrsText ? `#EXTM3U ${attrsText}` : '#EXTM3U';
+}
+
+function mergeParsedPlaylists(playlists) {
+    const items = [];
+    const groups = [];
+    const headers = [];
+
+    (playlists || []).forEach(parsed => {
+        if (!parsed) return;
+        if (parsed.header) headers.push(parsed.header);
+        (parsed.items || []).forEach(item => items.push(item));
+        (parsed.groups || []).forEach(group => {
+            if (!groups.includes(group)) groups.push(group);
+        });
+    });
+
+    return {
+        header: mergePlaylistHeaders(headers),
+        items,
+        groups
+    };
 }
 
 function applyParsedPlaylist(parsed) {
@@ -1762,6 +2021,19 @@ deleteGroupsBtn.addEventListener('click', deleteSelectedGroups);
 
 newItemBtn.addEventListener('click', createNewItem);
 renameItemBtn.addEventListener('click', startSelectedItemRename);
+if (bulkRenameForm) {
+    bulkRenameForm.addEventListener('submit', event => {
+        event.preventDefault();
+        applyBulkRename();
+    });
+}
+if (bulkRenameModalEl) {
+    bulkRenameModalEl.addEventListener('input', updateBulkRenamePreview);
+    bulkRenameModalEl.addEventListener('change', updateBulkRenamePreview);
+    bulkRenameModalEl.addEventListener('shown.bs.modal', () => {
+        if (bulkRenamePrefixInput) bulkRenamePrefixInput.focus();
+    });
+}
 cloneItemBtn.addEventListener('click', cloneSelectedItem);
 if (sortItemsAzBtn) sortItemsAzBtn.addEventListener('click', event => {
     event.preventDefault();

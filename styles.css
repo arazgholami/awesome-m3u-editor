@@ -16,6 +16,10 @@ body {
     min-width: 230px;
 }
 
+.app-meta a {
+    text-decoration: none;
+}
+
 .list-group-item {
     padding: 0.45rem 0.75rem;
     cursor: pointer;
@@ -193,7 +197,8 @@ body {
     overflow-y: auto;
 }
 
-.form-control, .form-control:focus {
+.form-control, .form-control:focus,
+.form-select, .form-select:focus {
     border-radius: 0;
     box-shadow: none;
     border-color: #ced4da;
@@ -201,6 +206,40 @@ body {
 
 .btn {
     border-radius: 0;
+}
+
+.modal-content {
+    border-radius: 0;
+}
+
+.bulk-rename-preview {
+    max-height: 12rem;
+    overflow: auto;
+}
+
+.bulk-rename-preview-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.bulk-rename-preview-old,
+.bulk-rename-preview-new {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bulk-rename-preview-old {
+    color: #6c757d;
+}
+
+.bulk-rename-preview-arrow {
+    flex: 0 0 auto;
+    color: #adb5bd;
 }
 
 .border {

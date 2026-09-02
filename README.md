@@ -1,4 +1,4 @@
-# Awesome M3U Editor 2.0
+# Awesome M3U Editor 2.1
 
 [![GitHub license](https://img.shields.io/github/license/arazgray/awesome-m3u-editor)](https://github.com/arazgray/awesome-m3u-editor/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/arazgray/awesome-m3u-editor)](https://github.com/arazgray/awesome-m3u-editor/stargazers)
@@ -10,14 +10,15 @@ Open a playlist, organize groups and channels, edit channel details, check strea
 🔗 **Live**: [https://arazgray.github.io/awesome-m3u-editor/](https://arazgray.github.io/awesome-m3u-editor/)
 
 ## Screenshot
-![screenshot](screenshot.png "Awesome M3U Editor 2.0")
+![screenshot](screenshot.png "Awesome M3U Editor 2.1")
 
 ## Main features
 
-- Open `.m3u` and `.m3u8` playlists
+- Open one or more `.m3u` and `.m3u8` playlists; multiple files are merged on load
 - Edit the playlist header, including EPG URLs
 - Create, rename, move, sort, and delete groups
 - Create, rename, move, sort, and delete channels
+- Bulk rename selected channels with prefix, suffix, find/replace, and numbering
 - Select one channel, many channels, or a range of channels
 - Drag and drop groups and channels
 - Filter groups and channels
@@ -48,11 +49,12 @@ https://iptv-org.github.io/iptv/index.country.m3u
 ## How to use
 
 1. Open the live demo or run `index.html` locally.
-2. Choose your `.m3u` or `.m3u8` file.
+2. Choose one or more `.m3u` or `.m3u8` files. Several files are merged into one playlist.
 3. Edit groups, channels, URLs, and metadata.
-4. Select channels and click **Check** to test only those channels.
-5. Use **Sort** to sort channels A-Z or by status.
-6. Click **Download Modified M3U** when you are done.
+4. Select several channels and click **Rename** to add a prefix or suffix, replace text, or add numbers. Double-click still renames one channel.
+5. Select channels and click **Check** to test only those channels.
+6. Use **Sort** to sort channels A-Z or by status.
+7. Click **Download Modified M3U** when you are done.
 
 ## Run locally
 
